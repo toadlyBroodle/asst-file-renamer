@@ -61,7 +61,11 @@ def get_creds():
         return json.load(file)
 def get_asst_id():
     creds = get_creds()
-    return creds['asst_id']        
+    try:
+        return creds['asst_id']
+    except KeyError as e:
+        print()
+        return None
 
 creds = get_creds()
 client = OpenAI(api_key=creds['openai_api_key'])
@@ -87,6 +91,11 @@ def pprint_msgs(messages):
     return msg_str
 
 def create_assistant():
+    asst_id = get_asst_id()
+    if asst_id:
+        print(f'Assistant already created: {asst_id}')
+        sys.exit(1)
+
     response = client.beta.assistants.create(name=asst_name, instructions=asst_instructions, model=asst_model, tools=asst_tools)
     # save assistant id to credentials
     asst_id = {'asst_id': f'{response.id}'}
