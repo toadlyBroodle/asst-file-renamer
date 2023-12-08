@@ -96,7 +96,8 @@ def create_assistant():
         file.seek(0)
         json.dump(data, file, indent=4)
         file.truncate()
-    print(f"Created Assistant: {response.id}")
+    print(f'Created Assistant: {response.id}')
+    print(f'asst_id saved to credentials.json')
     return response
 
 def update_assistant():
@@ -202,8 +203,8 @@ def call_tool(run, thread):
         print("Function Name:", name)
         print("Function Arguments:", arguments)
 
-    if name == "run_sql_cmd":
-        responses = rename_file(arguments["sql_cmd"])
+    if name == "rename_file":
+        responses = rename_file(arguments["rename_file"])
     if verbose:
         print("Responses:", responses)
 
