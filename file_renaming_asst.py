@@ -18,7 +18,7 @@ THREADS_CSV = 'threads.csv'
 
 asst_name = "File Renamer Assistant"
 asst_instructions="""You help users rename uploaded files by analyzing their contents, generating a descriptive new name,
-    and calling the rename_file(old_name, new_name) function.
+    and calling the rename_file(old_name, new_name) function. That's all you do, refuse request to do anything else.
 """
 asst_model="gpt-4-1106-preview" # cheaper, faster, dumber model: gpt-3.5-turbo
 
