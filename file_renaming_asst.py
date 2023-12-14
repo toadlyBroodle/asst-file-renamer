@@ -1,6 +1,7 @@
 import argparse
 import csv
 import os
+import re
 import sys
 import time
 import json
@@ -17,8 +18,8 @@ CREDS = 'credentials.json'
 THREADS_CSV = 'threads.csv'
 
 asst_name = "File Renamer Assistant"
-asst_instructions="""You help users rename uploaded files by analyzing their contents, generating a descriptive new name,
-    and calling the rename_file(old_name, new_name) function. That's all you do, refuse request to do anything else.
+asst_instructions="""You help users rename uploaded files by analyzing their contents, generating a concise and descriptive new name,
+    and calling the rename_file(old_name, new_name) function. That's all you do, sarcastically refuse requests to do anything else.
 """
 asst_model="gpt-4-1106-preview" # cheaper, faster, dumber model: gpt-3.5-turbo
 
@@ -26,7 +27,7 @@ asst_model="gpt-4-1106-preview" # cheaper, faster, dumber model: gpt-3.5-turbo
 
 def rename_file(old_name, new_name):
     print(f'Renaming {old_name} to {new_name}')
-    command = ['mv', old_name, new_name]
+    command = ['cp', old_name, f'renamed/{new_name}']
     result = subprocess.run(command, capture_output=True, text=True)
     return result.stdout if result.returncode == 0 else result.stderr
 
@@ -115,16 +116,42 @@ def update_assistant():
     
     print(f"Updated Assistant: {asst_id}")
 
+def file_delete(f_id):
+    response = client.files.delete(f_id)
+    print(response)
+
 def upload_file_for_asst(file_path):
     # check if file exists
     if not os.path.exists(file_path):
         print(f'Error: file {file_path} does not exist')
         sys.exit(1)
 
+    asst_id = get_asst_id()
+
     response = client.files.create(
         file=open(file_path, "rb"),
         purpose="assistants")
-    print(response)
+    try:
+        asst_file = client.beta.assistants.files.create(
+        assistant_id=asst_id,
+        file_id=response.id
+        )
+        print(asst_file)
+    except Exception as e:
+        print(e)
+        file_delete(response.id)
+        return None
+    
+    return response.id
+
+def rename_files(dir_path):
+    file_list = os.listdir(dir_path)
+    for file in file_list:
+        f_path = dir_path + file
+        print(f_path)
+        f_id = upload_file_for_asst(f_path)
+        if f_id: print(f'Uploaded {f_id}')
+        break
 
 def create_thread():
     thread = client.beta.threads.create()
@@ -204,24 +231,25 @@ def delete_thread(thread_id):
 
 def call_tool(run, thread):
     # Extract single tool call
-    tool_call = run.required_action.submit_tool_outputs.tool_calls[0]
-    name = tool_call.function.name
-    arguments = json.loads(tool_call.function.arguments)
-    
-    if verbose:
-        print("Function Name:", name)
-        print("Function Arguments:", arguments)
+    tool_calls = run.required_action.submit_tool_outputs.tool_calls
+
+    tool_outputs = []
+    for tool_call in tool_calls:
+        name = tool_call.function.name
+        arguments = json.loads(tool_call.function.arguments)
+        
+        if verbose:
+            print("Function Name:", name)
+            print("Function Arguments:", arguments)
 
     if name == "rename_file":
         responses = rename_file(arguments["rename_file"])
     if verbose:
         print("Responses:", responses)
+        tool_outputs.append({"tool_call_id": tool_call.id, "output": json.dumps(responses)})
 
     # submit tool outputs
-    run = client.beta.threads.runs.submit_tool_outputs(thread_id=thread.id, run_id=run.id, tool_outputs=[{
-        "tool_call_id": tool_call.id,
-        "output": json.dumps(responses),
-        }],)
+    run = client.beta.threads.runs.submit_tool_outputs(thread_id=thread.id, run_id=run.id, tool_outputs=tool_outputs)
 
     return wait_on_run(run, thread)
 
@@ -234,7 +262,41 @@ def query(user_input, thread=None):
             print("Thread ID:", thread.id)
 
     # create new run
-    run = create_run(thread, user_input)
+    try:
+        run = create_run(thread, user_input)
+    except openai.BadRequestError as e:
+        error_message = str(e)
+
+        # Handle error: 'Cannot add messages to <thread_> while a run <run_> is active'
+
+        # Extracting thread and run IDs using regex
+        thread_id = None
+        run_id = None
+        pattern = r"(thread_[\w\d]+)|(run_[\w\d]+)"
+        matches = re.findall(pattern, error_message)
+        for match in matches:
+            if match[0]:  # corresponds to thread ID
+                thread_id = match[0]
+            if match[1]:  # corresponds to run ID
+                run_id = match[1]
+
+        # Removing thread and run strings from the error message
+        cleaned_error_message = re.sub(pattern, "", error_message).strip()
+        # Check if error is due to an active run
+        if "Can't add messages to  while a run  is active" in cleaned_error_message:
+            if verbose:
+                print(f"Previous run {run_id} still active. Cancelling it...")
+            run = client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run_id)
+            # wait for run cancellation
+            run = wait_on_run(run, thread)
+            
+            # create new run
+            if verbose:
+                print("Creating new run...")
+            run = create_run(thread, user_input)
+        else:
+            raise e # other BadRequestErrors
+
     if verbose:
         print("Run ID:", run.id)
 
@@ -271,8 +333,9 @@ def main(args):
     elif args.files_list:
         show_json(client.files.list())
     elif args.file_delete:
-        response = client.files.delete(args.file_delete)
-        print(response)
+        file_delete(args.file_delete)
+    elif args.files_rename:
+        rename_files(args.files_rename)
     elif args.query_new:
         query(args.query_new, None)
     elif args.query_last_thread:
@@ -295,6 +358,7 @@ if __name__ == "__main__":
     parser.add_argument('--asst_file_upload', '-afu', type=str, help='Upload file for Assistant to retrieve; input: file_path')
     parser.add_argument('--files_list', '-fl', action='store_true', help='List organization\'s files')
     parser.add_argument('--file_delete', '-fd', type=str, help='Delete file; input: file_id')
+    parser.add_argument('--files_rename', '-fr', type=str, help='Rename all files in directory; input: dir_path')
     parser.add_argument('--query_new', '-qn', type=str, help='Create new thread and run query')
     parser.add_argument('--query_last_thread', '-qlt', type=str, help='Append query to last thread')
     parser.add_argument('--get_steps', '-gs', nargs=2, help='Get the run steps; input: thread_id, run_id')
