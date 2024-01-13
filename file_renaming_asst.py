@@ -175,6 +175,10 @@ def rename_files(dir_path):
     file_list = os.listdir(dir_path)
     for file in file_list:
         f_path = dir_path + file
+        
+        # skip subdirectories
+        if not os.path.isfile(f_path):
+            continue
 
         f_id = upload_file_for_asst(f_path)
         if f_id: 
@@ -184,8 +188,6 @@ def rename_files(dir_path):
         query_last_thread(f'Read {f_id}, generate a meaningful name based on the contents, and rename it using rename_file_interface.')
 
         file_delete(f_id)
-
-        break
 
 def create_thread():
     thread = client.beta.threads.create()
@@ -339,12 +341,13 @@ def query(user_input, thread=None):
     
     if verbose:
         print("Run status: ", run.status)
+    
+    if run.status == "failed":
+        print(run)
 
     while run.status == "requires_action":
         run = call_tool(run, thread)
     
-    if run.status == "failed":
-        print(run)
 
     #if run.status == "completed":
     response = get_response(thread)

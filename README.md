@@ -1,5 +1,9 @@
 # File Renaming Assistant
-An OpenAI Assistant (API) for renaming files based on their contents. Currently, [assistants support](https://platform.openai.com/docs/assistants/tools/supported-files) retrieval of these [file types](supported-file-types.csv).
+An OpenAI Assistant (API) for renaming files based on their contents. 
+
+## Notes
+Currently, assistants support uploading at most 20 files at a time. If this limitation is not lifted soon, we will devise a workaround.
+[Assistants support](https://platform.openai.com/docs/assistants/tools/supported-files) retrieval of these [file types](supported-file-types.csv), hopefully all common types are added soon.
 
 ## Initial setup
 1. Save new `credentials.json` file to working directory, replacing with your API key, using format:
