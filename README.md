@@ -3,11 +3,7 @@
 # File Renaming Assistant
 An OpenAI Assistant (API) for renaming files base on their contents, using Python, Bash, and Linux CLI.
 
-[File Renamer Helper App](https://chat.openai.com/g/g-O1sujw5iD-file-renamer) available on OpenAI's GPT store.
-
-Renamed files are saved to new *renamed/* subdirectory in target directory, with originals left as is.
-
-Disclaimer: This assistant does not upload files directly to OpenAI, but rather parses files locally to extract summary of contexts. This text summary is then necessarily sent to OpenAI API for analysis to generate new file names. Use with discretion and at your own risk.
+[File Renamer Helper app](https://chat.openai.com/g/g-O1sujw5iD-file-renamer) available on OpenAI's GPT store, to help install, use and understand this repository.
 
 ## Initial setup
 1. clone [File Renamer Assistant](https://github.com/toadlyBroodle/asst-file-renamer) repository:
@@ -27,6 +23,12 @@ Disclaimer: This assistant does not upload files directly to OpenAI, but rather 
 ## Usage, overview
 File types currently supported: .txt, .pdf, .docx, .xlsx, .jpg, .jpeg, .png
 Please submit requests for additionally desired file types. 
+
+Renamed files are saved to new *renamed/* subdirectory in target directory, with originals left as is.
+
+EXTRACTION_PERCENT variable may need to be adjusted to achieving accurate new file names, while still preserving file privacy.
+
+Disclaimer: This assistant does **not** upload files directly to OpenAI, but rather parses files locally to extract small percentage of beginning text contexts. This text summary is then necessarily sent to OpenAI API for analysis to generate new file names. Use with discretion and at your own risk. 
 
 All the included functions are not necessarily used for renaming files, but are nonetheless included for user customization purposes, as well as to provide a demonstrative, documented, example of how to create and use OpenAI Assistants API.
 

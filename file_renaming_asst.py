@@ -21,6 +21,7 @@ verbose = False
 
 CREDS = 'credentials.json'
 THREADS_CSV = 'threads.csv'
+EXTRACTION_PERCENT = 10 # % of leading text to extract from files
 
 asst_name = "File Renamer Assistant"
 asst_instructions="""You help users rename files by generating a concise and descriptive new name based on the file text content 
@@ -198,32 +199,43 @@ def upload_file_for_asst(file_path):
     
     return response.id
 
+def get_slice_size(total):
+    slice_len = int(total * EXTRACTION_PERCENT / 100) # Calculate the slice length as integer
+
+    if not slice_len: # slice_len = 0
+        raise ValueError('Error: No text extracted. EXTRACTION_PERCENT needs to be increased to rename this file.')
+    return slice_len
+
 def extract_text_from_file(file_path):
     file_extension = os.path.splitext(file_path)[1].lower()
 
-    try:
-        if file_extension in ['.txt']:
-            with open(file_path, 'r') as file:
-                return file.read()
-        elif file_extension in ['.pdf']:
-            with open(file_path, 'rb') as file:
-                reader = PyPDF2.PdfReader(file)
-                text = [page.extract_text() for page in reader.pages]
-                return "\n".join(text)
-        elif file_extension in ['.docx']:
-            doc = Document(file_path)
-            return "\n".join([para.text for para in doc.paragraphs])
-        elif file_extension in ['.xlsx']:
-            wb = openpyxl.load_workbook(file_path)
-            sheet = wb.active
-            return "\n".join([str(cell.value) for row in sheet for cell in row])
-        elif file_extension in ['.jpg', '.jpeg', '.png']:
-            img = Image.open(file_path)
-            return pytesseract.image_to_string(img)
-        else:
-            return "Unsupported file format"
-    except Exception as e:
-        return str(e)
+    if file_extension in ['.txt']:
+        with open(file_path, 'r') as file:
+            content = file.readlines()
+            return ''.join(content[:get_slice_size(len(content))])
+
+    elif file_extension in ['.pdf']:
+        with open(file_path, 'rb') as file:
+            reader = PyPDF2.PdfReader(file)
+            total_pages = len(reader.pages)
+            text = [reader.pages[i].extract_text() for i in range(get_slice_size(total_pages))]
+            return "\n".join(text)
+
+    elif file_extension in ['.docx']:
+        doc = Document(file_path)
+        total_paragraphs = len(doc.paragraphs)
+        return "\n".join(para.text for para in doc.paragraphs[:get_slice_size(total_paragraphs)])
+
+    elif file_extension in ['.xlsx']:
+        wb = openpyxl.load_workbook(file_path)
+        sheet = wb.active
+        total_rows = len(list(sheet.rows))
+        return "\n".join(str(cell.value) for row in list(sheet.rows)[:get_slice_size(total_rows)] for cell in row)
+    elif file_extension in ['.jpg', '.jpeg', '.png']:
+        img = Image.open(file_path)
+        return pytesseract.image_to_string(img)
+    else:
+        raise ValueError("Error: Unsupported file format")
 
 def rename_files(dir_path):
     global dir_to_rename
@@ -237,7 +249,16 @@ def rename_files(dir_path):
         if not os.path.isfile(f_path):
             continue
 
-        file_text = extract_text_from_file(f_path)
+        try:
+            if verbose:
+                print(f'Extracting text from {file}.')
+            file_text = None
+            file_text = extract_text_from_file(f_path)
+            if verbose:
+                print(f'Extracted text: {file_text}')
+        except Exception as e:
+            print(f'Skipping {file}. {e}')
+            continue
 
         query_last_thread(f"""Generate a concise, meaningful file name for a file ({file}) containing the following text content: {file_text}\n
             Then rename it using rename_file_interface.""")
