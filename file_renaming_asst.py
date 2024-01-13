@@ -29,13 +29,17 @@ dir_to_rename = None
 # assistant functions
 
 def rename_file(old_name, new_name):
+    new_dir = f'{dir_to_rename}renamed/'
+    if dir_to_rename and not os.path.exists(new_dir):
+        os.makedirs(new_dir)
+
     try: # replace uploaded f_id with old file name
         old_name = orig_file_names[old_name]
     except KeyError:
         pass
 
     print(f'Renaming {old_name} to {new_name}')
-    command = ['cp', f'{dir_to_rename}{old_name}', f'{dir_to_rename}{new_name}']
+    command = ['cp', f'{dir_to_rename}{old_name}', f'{new_dir}{new_name}']
     result = subprocess.run(command, capture_output=True, text=True)
     return result.stdout if result.returncode == 0 else result.stderr
 
@@ -93,13 +97,23 @@ def pprint_thread(thread):
     return pprint_msgs(messages)
 
 def pprint_msgs(messages):
-    print("Messages:")
+    if verbose: print("Messages:")
+    else: print("Last Message:")
+    
     msg_str = ""
     for m in messages:
         line = f"{m.role}: {m.content[0].text.value}"
+        if verbose:
+            print(line)
+            msg_str += line + '\n'
+        last_msg = m # this will end up as last message
+
+    if not verbose:
         print(line)
         msg_str += line + '\n'
+    
     return msg_str
+
 
 def create_assistant():
     asst_id = get_asst_id()
@@ -266,10 +280,8 @@ def call_tool(run, thread):
 
     if name == "rename_file":
         responses = rename_file(arguments["old_name"], arguments["new_name"])
-    if verbose:
-        print("Responses:", responses)
-        tool_outputs.append({"tool_call_id": tool_call.id, "output": json.dumps(responses)})
-
+    
+    tool_outputs.append({"tool_call_id": tool_call.id, "output": json.dumps(responses)})
     # submit tool outputs
     run = client.beta.threads.runs.submit_tool_outputs(thread_id=thread.id, run_id=run.id, tool_outputs=tool_outputs)
 
@@ -340,6 +352,7 @@ def query(user_input, thread=None):
 
 def query_last_thread(q):
     lt_id = get_last_thread_id()
+    #print(f'last_thread={lt_id}')
     if not lt_id:
         print(f'Error: no threads in {THREADS_CSV}')
         sys.exit(1)
