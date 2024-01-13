@@ -6,21 +6,24 @@ Renamed files are saved to new *renamed/* subdirectory in target directory, with
 Disclaimer: This assistant does not upload files directly to OpenAI, but rather parses files locally to extract summary of contexts. This text summary is then necessarily sent to OpenAI API for analysis to generate new file names. Use with discretion and at your own risk.
 
 ## Initial setup
-1. install dependencies
-    ```
-    pip3 install python-docx openpyxl PyPDF2 pillow pytesseract
-    ```
+1. clone [File Renamer Assistant](https://github.com/toadlyBroodle/asst-file-renamer) repository:
+    ```git clone https://github.com/toadlyBroodle/asst-file-renamer.git```
+2. install dependencies
+    ```pip3 install python-docx openpyxl PyPDF2 pillow pytesseract```
 
-2. Save new `credentials.json` file to working directory, replacing with your API key, using format:
+3. Save new *credentials.json* file to working directory, replacing with your API key, using format:
     ```
     {
         "openai_api_key": "sk-####",
     }
     ```
-3. Create new assistant:
+4. Create new assistant:
     `python3 file_renamer_asst.py --asst_create`
 
 ## Usage, overview
+File types currently supported: .txt, .pdf, .docx, .xlsx, .jpg, .jpeg, .png
+Please submit requests for additionally desired file types. 
+
 All the included functions are not necessarily used for renaming files, but are nonetheless included for user customization purposes, as well as to provide a demonstrative, documented, example of how to create and use OpenAI Assistants API.
 
 ```
