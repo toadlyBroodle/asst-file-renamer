@@ -69,11 +69,11 @@ rename_uploaded_file_interface = {
         "properties": {
             "old_name": {
                 "type": "string",
-                "description": "The old name of the file, including it's extention; e.g. old_name.ext, NOT file_########"
+                "description": "The old name of the file, including it's extension; e.g. old_name.ext, NOT file_########"
             },
             "new_name": {
                 "type": "string",
-                "description": "The new name of the file, including it's extention; e.g. new_name.ext"
+                "description": "The new name of the file, including it's extension; e.g. new_name.ext"
             }},
         "required": ["old_name", "new_name"]
     },}
@@ -86,11 +86,11 @@ rename_file_interface = {
         "properties": {
             "old_name": {
                 "type": "string",
-                "description": "The old name of the file, including it's extention; e.g. old_name.ext"
+                "description": "The old name of the file, including it's extension; e.g. old_name.ext"
             },
             "new_name": {
                 "type": "string",
-                "description": "The new name of the file, without it's extention; e.g. new_descriptive_name"
+                "description": "The new name of the file, including the same extension as old_name; e.g. new_descriptive_name.ext"
             }},
         "required": ["old_name", "new_name"]
     },}
