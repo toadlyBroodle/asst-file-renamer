@@ -390,7 +390,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='OpenAI Assistant: Assessment Reports')
+    parser = argparse.ArgumentParser(description='OpenAI Assistant to rename directory files')
     parser.add_argument('--asst_create', '-ac', action='store_true', help='Create the Assistant')
     parser.add_argument('--asst_update', '-au', action='store_true', help='Update the Assistant')
     parser.add_argument('--asst_file_upload', '-afu', type=str, help='Upload file for Assistant to retrieve; input: file_path')
@@ -402,6 +402,6 @@ if __name__ == "__main__":
     parser.add_argument('--get_steps', '-gs', nargs=2, help='Get the run steps; input: thread_id, run_id')
     parser.add_argument('--get_thread', '-gt', type=str, help='Get the thread; input: thread_id, "new"')
     parser.add_argument('--delete_thread', '-dt', type=str, help='Delete the thread; input: thread_id')
-    parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose output.')
+    parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose output')
 
     main(parser.parse_args())
