@@ -1,5 +1,13 @@
 {
     "cSpell.enableFiletypes": [
         "!python"
+    ],
+    "spellright.language": [
+        "en"
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext"
     ]
 }

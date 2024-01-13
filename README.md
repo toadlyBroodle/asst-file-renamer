@@ -10,13 +10,18 @@ Renamed files are saved to new *renamed/* subdirectory in target directory, with
 Disclaimer: This assistant currently requires uploading files to OpenAI's servers, to analyze content. Use with discretion and at your own risk.
 
 ## Initial setup
-1. Save new `credentials.json` file to working directory, replacing with your API key, using format:
+1. install dependencies
+    ```
+    pip3 install python-docx openpyxl PyPDF2 pillow pytesseract
+    ```
+
+2. Save new `credentials.json` file to working directory, replacing with your API key, using format:
     ```
     {
         "openai_api_key": "sk-####",
     }
     ```
-2. Create new assistant:
+3. Create new assistant:
     `python3 file_renamer_asst.py --asst_create`
 
 ## Usage

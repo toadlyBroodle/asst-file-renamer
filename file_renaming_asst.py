@@ -8,6 +8,11 @@ import json
 from pprint import pprint
 import subprocess
 import openai
+from PIL import Image
+import pytesseract
+import PyPDF2
+from docx import Document
+import openpyxl
 
 
 # globals
@@ -18,9 +23,9 @@ CREDS = 'credentials.json'
 THREADS_CSV = 'threads.csv'
 
 asst_name = "File Renamer Assistant"
-asst_instructions="""You help users rename uploaded files by analyzing their contents, generating a concise and descriptive new name based on the 
-file contents, and calling your rename_file function, according to your rename_file_interface, including valid json arguments.
-"""
+asst_instructions="""You help users rename files by generating a concise and descriptive new name based on the file text content 
+    and calling rename_file function.
+    """
 asst_model="gpt-4-1106-preview" # cheaper, faster, dumber model: gpt-3.5-turbo
 
 orig_file_names = {}
@@ -28,7 +33,7 @@ dir_to_rename = None
 
 # assistant functions
 
-def rename_file(old_name, new_name):
+def rename_uploaded_file(old_name, new_name):
     new_dir = f'{dir_to_rename}renamed/'
     if dir_to_rename and not os.path.exists(new_dir):
         os.makedirs(new_dir)
@@ -37,16 +42,26 @@ def rename_file(old_name, new_name):
         old_name = orig_file_names[old_name]
     except KeyError:
         pass
+    if verbose:
+        print(f'Renaming {old_name} to {new_name}')
+    command = ['cp', f'{dir_to_rename}{old_name}', f'{new_dir}{new_name}']
+    result = subprocess.run(command, capture_output=True, text=True)
+    return result.stdout if result.returncode == 0 else result.stderr
 
-    print(f'Renaming {old_name} to {new_name}')
+def rename_file(old_name, new_name):
+    new_dir = f'{dir_to_rename}renamed/'
+    if dir_to_rename and not os.path.exists(new_dir):
+        os.makedirs(new_dir)
+    if verbose:
+        print(f'Renaming {old_name} to {new_name}')
     command = ['cp', f'{dir_to_rename}{old_name}', f'{new_dir}{new_name}']
     result = subprocess.run(command, capture_output=True, text=True)
     return result.stdout if result.returncode == 0 else result.stderr
 
 # assistant function interfaces
 
-rename_file_interface = {
-    "name": "rename_file",
+rename_uploaded_file_interface = {
+    "name": "rename_uploaded_file",
     "description": """Renames the input file by passing old_name and new_name VALID JSON arguments, 
         e.g. \"arguments\": \"{\"old_name\":\"old_name.txt\", \"new_name\":\"new_name.txt\"}\"""",
     "parameters": {
@@ -63,9 +78,27 @@ rename_file_interface = {
         "required": ["old_name", "new_name"]
     },}
 
+rename_file_interface = {
+    "name": "rename_file",
+    "description": "Renames the input file by passing in <new_name>",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "old_name": {
+                "type": "string",
+                "description": "The old name of the file, including it's extention; e.g. old_name.ext"
+            },
+            "new_name": {
+                "type": "string",
+                "description": "The new name of the file, without it's extention; e.g. new_descriptive_name"
+            }},
+        "required": ["old_name", "new_name"]
+    },}
+
 # assistant tools
 asst_tools=[#{"type": "code_interpreter"},
-            {"type": "retrieval"},
+            #{"type": "retrieval"},
+            #{"type": "function", "function": rename_uploaded_file_interface},
             {"type": "function", "function": rename_file_interface},
         ]
 
@@ -98,7 +131,6 @@ def pprint_thread(thread):
 
 def pprint_msgs(messages):
     if verbose: print("Messages:")
-    else: print("Last Message:")
     
     msg_str = ""
     for m in messages:
@@ -106,14 +138,12 @@ def pprint_msgs(messages):
         if verbose:
             print(line)
             msg_str += line + '\n'
-        last_msg = m # this will end up as last message
 
     if not verbose:
-        print(line)
+        print(line) # last line
         msg_str += line + '\n'
     
     return msg_str
-
 
 def create_assistant():
     asst_id = get_asst_id()
@@ -168,6 +198,33 @@ def upload_file_for_asst(file_path):
     
     return response.id
 
+def extract_text_from_file(file_path):
+    file_extension = os.path.splitext(file_path)[1].lower()
+
+    try:
+        if file_extension in ['.txt']:
+            with open(file_path, 'r') as file:
+                return file.read()
+        elif file_extension in ['.pdf']:
+            with open(file_path, 'rb') as file:
+                reader = PyPDF2.PdfReader(file)
+                text = [page.extract_text() for page in reader.pages]
+                return "\n".join(text)
+        elif file_extension in ['.docx']:
+            doc = Document(file_path)
+            return "\n".join([para.text for para in doc.paragraphs])
+        elif file_extension in ['.xlsx']:
+            wb = openpyxl.load_workbook(file_path)
+            sheet = wb.active
+            return "\n".join([str(cell.value) for row in sheet for cell in row])
+        elif file_extension in ['.jpg', '.jpeg', '.png']:
+            img = Image.open(file_path)
+            return pytesseract.image_to_string(img)
+        else:
+            return "Unsupported file format"
+    except Exception as e:
+        return str(e)
+
 def rename_files(dir_path):
     global dir_to_rename
     dir_to_rename = dir_path
@@ -180,14 +237,10 @@ def rename_files(dir_path):
         if not os.path.isfile(f_path):
             continue
 
-        f_id = upload_file_for_asst(f_path)
-        if f_id: 
-            print(f'Uploaded {f_id}')
-            orig_file_names[f_id] = file
+        file_text = extract_text_from_file(f_path)
 
-        query_last_thread(f'Read {f_id}, generate a meaningful name based on the contents, and rename it using rename_file_interface.')
-
-        file_delete(f_id)
+        query_last_thread(f"""Generate a concise, meaningful file name for a file ({file}) containing the following text content: {file_text}\n
+            Then rename it using rename_file_interface.""")
 
 def create_thread():
     thread = client.beta.threads.create()
@@ -272,7 +325,8 @@ def call_tool(run, thread):
 
     tool_outputs = []
     for tool_call in tool_calls:
-        print(tool_call.function.arguments)
+        if verbose:
+            print(f'Tool call arguments: {tool_call.function.arguments}')
         name = tool_call.function.name
         arguments = json.loads(tool_call.function.arguments)
 
@@ -280,7 +334,9 @@ def call_tool(run, thread):
             print("Function Name:", name)
             print("Function Arguments:", arguments)
 
-    if name == "rename_file":
+    if name == "rename_uploaded_file":
+        responses = rename_uploaded_file(arguments["old_name"], arguments["new_name"])
+    elif name == "rename_file":
         responses = rename_file(arguments["old_name"], arguments["new_name"])
     
     tool_outputs.append({"tool_call_id": tool_call.id, "output": json.dumps(responses)})
