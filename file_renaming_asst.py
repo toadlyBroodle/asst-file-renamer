@@ -449,7 +449,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='OpenAI Assistant to rename directory files')
+    parser = argparse.ArgumentParser(description='OpenAI Assistant to rename directory files in a given directory.')
     parser.add_argument('--asst_create', '-ac', action='store_true', help='Create the Assistant')
     parser.add_argument('--asst_update', '-au', action='store_true', help='Update the Assistant')
     parser.add_argument('--asst_file_upload', '-afu', type=str, help='Upload file for Assistant to retrieve; input: file_path')

@@ -1,13 +1,9 @@
 # File Renaming Assistant
-An OpenAI Assistant (API) for renaming files based on their contents. 
-
-## Notes
-Currently, assistants support uploading at most 20 files at a time. If this limitation is not lifted soon, we will devise a workaround.
-[Assistants support](https://platform.openai.com/docs/assistants/tools/supported-files) retrieval of these [file types](supported-file-types.csv), hopefully all common types are added soon.
+An OpenAI Assistant (API) for renaming files base on their contents, using Python, Bash, and Linux CLI.
 
 Renamed files are saved to new *renamed/* subdirectory in target directory, with originals left as is.
 
-Disclaimer: This assistant currently requires uploading files to OpenAI's servers, to analyze content. Use with discretion and at your own risk.
+Disclaimer: This assistant does not upload files directly to OpenAI, but rather parses files locally to extract summary of contexts. This text summary is then necessarily sent to OpenAI API for analysis to generate new file names. Use with discretion and at your own risk.
 
 ## Initial setup
 1. install dependencies
@@ -24,13 +20,15 @@ Disclaimer: This assistant currently requires uploading files to OpenAI's server
 3. Create new assistant:
     `python3 file_renamer_asst.py --asst_create`
 
-## Usage
+## Usage, overview
+All the included functions are not necessarily used for renaming files, but are nonetheless included for user customization purposes, as well as to provide a demonstrative, documented, example of how to create and use OpenAI Assistants API.
+
 ```
 usage: file_renaming_asst.py [-h] [--asst_create] [--asst_update] [--asst_file_upload ASST_FILE_UPLOAD] [--files_list] [--file_delete FILE_DELETE]
                              [--files_rename FILES_RENAME] [--query_new QUERY_NEW] [--query_last_thread QUERY_LAST_THREAD]
                              [--get_steps GET_STEPS GET_STEPS] [--get_thread GET_THREAD] [--delete_thread DELETE_THREAD] [--verbose]
 
-OpenAI Assistant to rename directory files
+OpenAI Assistant to rename files in a given directory.
 
 optional arguments:
   -h, --help            show this help message and exit
