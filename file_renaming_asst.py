@@ -225,7 +225,7 @@ def wait_on_run(run, thread):
 def get_response(thread):
     return client.beta.threads.messages.list(thread_id=thread.id, order="asc")
 
-def get_thread(thread_id):
+def thread_get(thread_id):
     if thread_id == "new":
         thread = create_thread()
     else:
@@ -242,7 +242,7 @@ def get_last_thread_id():
             last_line = None
         return last_line[0] if last_line else None
 
-def get_steps(thread, run):
+def steps_get(thread, run):
     # get steps
     run_steps = client.beta.threads.runs.steps.list(thread_id=thread.id, run_id=run.id, order="asc")
     if verbose:
@@ -251,7 +251,7 @@ def get_steps(thread, run):
             print(json.dumps(show_json(step_details), indent=4))
     return run_steps
 
-def delete_thread(thread_id):
+def thread_delete(thread_id):
     client.beta.threads.delete(thread_id)
     with open(THREADS_CSV, 'r', newline='') as file:
         reader = csv.reader(file)
@@ -356,7 +356,7 @@ def query_last_thread(q):
     if not lt_id:
         print(f'Error: no threads in {THREADS_CSV}')
         sys.exit(1)
-    return query(q, get_thread(lt_id))
+    return query(q, thread_get(lt_id))
 
 def main(args):
     global verbose
@@ -378,15 +378,15 @@ def main(args):
         query(args.query_new, None)
     elif args.query_last_thread:
         query_last_thread(args.query_last_thread)
-    elif args.get_thread:
-        thread = get_thread(args.get_thread)
+    elif args.thread_get:
+        thread = thread_get(args.get_thread)
         return thread
-    elif args.get_steps:
+    elif args.thread_delete:
+        thread_delete(args.delete_thread)
+    elif args.steps_get:
         thread = client.beta.threads.retrieve(args.get_steps[0])
         run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=args.get_steps[1])
-        return get_steps(thread, run)
-    elif args.delete_thread:
-        delete_thread(args.delete_thread)
+        return steps_get(thread, run)
 
 
 if __name__ == "__main__":
@@ -399,9 +399,9 @@ if __name__ == "__main__":
     parser.add_argument('--files_rename', '-fr', type=str, help='Rename all files in directory; input: dir_path')
     parser.add_argument('--query_new', '-qn', type=str, help='Create new thread and run query')
     parser.add_argument('--query_last_thread', '-qlt', type=str, help='Append query to last thread')
-    parser.add_argument('--get_steps', '-gs', nargs=2, help='Get the run steps; input: thread_id, run_id')
-    parser.add_argument('--get_thread', '-gt', type=str, help='Get the thread; input: thread_id, "new"')
-    parser.add_argument('--delete_thread', '-dt', type=str, help='Delete the thread; input: thread_id')
+    parser.add_argument('--thread_get', '-tg', type=str, help='Get a thread; input: thread_id, "new"')
+    parser.add_argument('--thread_delete', '-td', type=str, help='Delete a thread; input: thread_id')
+    parser.add_argument('--steps_get', '-sg', nargs=2, help='Get run steps; input: thread_id, run_id')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose output')
 
     main(parser.parse_args())
