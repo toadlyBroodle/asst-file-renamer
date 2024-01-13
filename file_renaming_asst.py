@@ -7,7 +7,7 @@ import time
 import json
 from pprint import pprint
 import subprocess
-from openai import OpenAI
+import openai
 
 
 # globals
@@ -18,16 +18,24 @@ CREDS = 'credentials.json'
 THREADS_CSV = 'threads.csv'
 
 asst_name = "File Renamer Assistant"
-asst_instructions="""You help users rename uploaded files by analyzing their contents, generating a concise and descriptive new name,
-    and calling the rename_file(old_name, new_name) function. That's all you do, sarcastically refuse requests to do anything else.
+asst_instructions="""You help users rename uploaded files by analyzing their contents, generating a concise and descriptive new name based on the 
+file contents, and calling your rename_file function, according to your rename_file_interface, including valid json arguments.
 """
 asst_model="gpt-4-1106-preview" # cheaper, faster, dumber model: gpt-3.5-turbo
+
+orig_file_names = {}
+dir_to_rename = None
 
 # assistant functions
 
 def rename_file(old_name, new_name):
+    try: # replace uploaded f_id with old file name
+        old_name = orig_file_names[old_name]
+    except KeyError:
+        pass
+
     print(f'Renaming {old_name} to {new_name}')
-    command = ['cp', old_name, f'renamed/{new_name}']
+    command = ['cp', f'{dir_to_rename}{old_name}', f'{dir_to_rename}{new_name}']
     result = subprocess.run(command, capture_output=True, text=True)
     return result.stdout if result.returncode == 0 else result.stderr
 
@@ -35,13 +43,14 @@ def rename_file(old_name, new_name):
 
 rename_file_interface = {
     "name": "rename_file",
-    "description": "Renames a file.",
+    "description": """Renames the input file by passing old_name and new_name VALID JSON arguments, 
+        e.g. \"arguments\": \"{\"old_name\":\"old_name.txt\", \"new_name\":\"new_name.txt\"}\"""",
     "parameters": {
         "type": "object",
         "properties": {
             "old_name": {
                 "type": "string",
-                "description": "The old name of the file, including it's extention; e.g. old_name.ext"
+                "description": "The old name of the file, including it's extention; e.g. old_name.ext, NOT file_########"
             },
             "new_name": {
                 "type": "string",
@@ -51,7 +60,8 @@ rename_file_interface = {
     },}
 
 # assistant tools
-asst_tools=[{"type": "retrieval"},
+asst_tools=[#{"type": "code_interpreter"},
+            {"type": "retrieval"},
             {"type": "function", "function": rename_file_interface},
         ]
 
@@ -69,7 +79,7 @@ def get_asst_id():
         return None
 
 creds = get_creds()
-client = OpenAI(api_key=creds['openai_api_key'])
+client = openai.OpenAI(api_key=creds['openai_api_key'])
 
 
 # funcs
@@ -145,12 +155,22 @@ def upload_file_for_asst(file_path):
     return response.id
 
 def rename_files(dir_path):
+    global dir_to_rename
+    dir_to_rename = dir_path
+
     file_list = os.listdir(dir_path)
     for file in file_list:
         f_path = dir_path + file
-        print(f_path)
+
         f_id = upload_file_for_asst(f_path)
-        if f_id: print(f'Uploaded {f_id}')
+        if f_id: 
+            print(f'Uploaded {f_id}')
+            orig_file_names[f_id] = file
+
+        query_last_thread(f'Read {f_id}, generate a meaningful name based on the contents, and rename it using rename_file_interface.')
+
+        file_delete(f_id)
+
         break
 
 def create_thread():
@@ -192,9 +212,10 @@ def get_response(thread):
     return client.beta.threads.messages.list(thread_id=thread.id, order="asc")
 
 def get_thread(thread_id):
-    thread = client.beta.threads.retrieve(thread_id)
-    if verbose:
-        pprint_thread(thread)
+    if thread_id == "new":
+        thread = create_thread()
+    else:
+        thread = client.beta.threads.retrieve(thread_id)
     return thread
 
 def get_last_thread_id():
@@ -235,15 +256,16 @@ def call_tool(run, thread):
 
     tool_outputs = []
     for tool_call in tool_calls:
+        print(tool_call.function.arguments)
         name = tool_call.function.name
         arguments = json.loads(tool_call.function.arguments)
-        
+
         if verbose:
             print("Function Name:", name)
             print("Function Arguments:", arguments)
 
     if name == "rename_file":
-        responses = rename_file(arguments["rename_file"])
+        responses = rename_file(arguments["old_name"], arguments["new_name"])
     if verbose:
         print("Responses:", responses)
         tool_outputs.append({"tool_call_id": tool_call.id, "output": json.dumps(responses)})
@@ -309,6 +331,9 @@ def query(user_input, thread=None):
     while run.status == "requires_action":
         run = call_tool(run, thread)
     
+    if run.status == "failed":
+        print(run)
+
     #if run.status == "completed":
     response = get_response(thread)
     return pprint_msgs(response)
@@ -362,7 +387,7 @@ if __name__ == "__main__":
     parser.add_argument('--query_new', '-qn', type=str, help='Create new thread and run query')
     parser.add_argument('--query_last_thread', '-qlt', type=str, help='Append query to last thread')
     parser.add_argument('--get_steps', '-gs', nargs=2, help='Get the run steps; input: thread_id, run_id')
-    parser.add_argument('--get_thread', '-gt', type=str, help='Get the thread; input: thread_id')
+    parser.add_argument('--get_thread', '-gt', type=str, help='Get the thread; input: thread_id, "new"')
     parser.add_argument('--delete_thread', '-dt', type=str, help='Delete the thread; input: thread_id')
     parser.add_argument('--verbose', '-v', action='store_true', help='Enable verbose output.')
 
