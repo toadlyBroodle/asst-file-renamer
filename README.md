@@ -1,3 +1,5 @@
+![File Renamer Assistant logo](file_renamer_assistant_logo.png)
+
 # File Renaming Assistant
 An OpenAI Assistant (API) for renaming files base on their contents, using Python, Bash, and Linux CLI.
 
