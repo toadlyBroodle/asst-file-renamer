@@ -3,6 +3,8 @@
 # File Renaming Assistant
 An OpenAI Assistant (API) for renaming files base on their contents, using Python, Bash, and Linux CLI.
 
+[File Renamer Helper App](https://chat.openai.com/g/g-O1sujw5iD-file-renamer) available on OpenAI's GPT store.
+
 Renamed files are saved to new *renamed/* subdirectory in target directory, with originals left as is.
 
 Disclaimer: This assistant does not upload files directly to OpenAI, but rather parses files locally to extract summary of contexts. This text summary is then necessarily sent to OpenAI API for analysis to generate new file names. Use with discretion and at your own risk.
