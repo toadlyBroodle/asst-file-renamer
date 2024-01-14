@@ -13,6 +13,7 @@ import pytesseract
 import PyPDF2
 from docx import Document
 import openpyxl
+import pandas as pd
 
 
 # globals
@@ -27,7 +28,7 @@ asst_name = "File Renamer Assistant"
 asst_instructions="""You help users rename files by generating a concise and descriptive new name based on the file text content 
     and calling rename_file function.
     """
-asst_model="gpt-4-1106-preview" # cheaper, faster, dumber model: gpt-3.5-turbo
+asst_model="gpt-4-1106-preview" # models: gpt-3.5-turbo, gpt-4-1106-preview
 
 orig_file_names = {}
 dir_to_rename = None
@@ -231,6 +232,13 @@ def extract_text_from_file(file_path):
         sheet = wb.active
         total_rows = len(list(sheet.rows))
         return "\n".join(str(cell.value) for row in list(sheet.rows)[:get_slice_size(total_rows)] for cell in row)
+
+    elif file_extension in ['.csv']:
+        # Reading the CSV file using pandas and converting a portion of it to string
+        df = pd.read_csv(file_path)
+        slice_length = get_slice_size(len(df))
+        return df.head(slice_length).to_string(index=False)
+
     elif file_extension in ['.jpg', '.jpeg', '.png']:
         img = Image.open(file_path)
         return pytesseract.image_to_string(img)
@@ -418,24 +426,28 @@ def query(user_input, thread=None):
     
     if verbose:
         print("Run status: ", run.status)
-    
-    if run.status == "failed":
-        print(run)
+    if run.status == 'failed':
+        print('Run status: failed.')
+        print(f'Last Error: {run.last_error}')
 
     while run.status == "requires_action":
         run = call_tool(run, thread)
     
 
-    #if run.status == "completed":
-    response = get_response(thread)
-    return pprint_msgs(response)
+    if run.status == "completed":
+        response = get_response(thread)
+        return pprint_msgs(response)
 
 def query_last_thread(q):
     lt_id = get_last_thread_id()
     #print(f'last_thread={lt_id}')
     if not lt_id:
-        print(f'Error: no threads in {THREADS_CSV}')
-        sys.exit(1)
+        if verbose:
+            print(f'No threads in {THREADS_CSV}')
+        thread_get('new')
+        lt_id = get_last_thread_id()
+        if verbose:
+            print(f'Created new thread: {lt_id}')
     return query(q, thread_get(lt_id))
 
 def main(args):
@@ -459,13 +471,13 @@ def main(args):
     elif args.query_last_thread:
         query_last_thread(args.query_last_thread)
     elif args.thread_get:
-        thread = thread_get(args.get_thread)
+        thread = thread_get(args.thread_get)
         return thread
     elif args.thread_delete:
-        thread_delete(args.delete_thread)
+        thread_delete(args.thread_delete)
     elif args.steps_get:
-        thread = client.beta.threads.retrieve(args.get_steps[0])
-        run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=args.get_steps[1])
+        thread = client.beta.threads.retrieve(args.steps_get[0])
+        run = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=args.steps_get[1])
         return steps_get(thread, run)
 
 
