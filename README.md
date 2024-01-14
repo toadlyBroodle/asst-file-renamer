@@ -21,7 +21,7 @@ An OpenAI Assistant (API) for renaming files base on their contents, using Pytho
     `python3 file_renamer_asst.py --asst_create`
 
 ## Usage, overview
-File types currently supported: .txt, .pdf, .docx, .xlsx, .jpg, .jpeg, .png
+File types currently supported: .txt, .csv, .pdf, .docx, .xlsx, .jpg, .jpeg, .png
 Please submit requests for additionally desired file types. 
 
 Renamed files are saved to new *renamed/* subdirectory in target directory, with originals left as is.
